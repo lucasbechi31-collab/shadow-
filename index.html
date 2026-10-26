@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#090711">
+<title>Shadow Arena — Anime 3D</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090711;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;touch-action:none}
+  canvas{display:block}
+  #hud{position:fixed;inset:0;pointer-events:none}
+  .panel{background:rgba(12,9,25,.78);border:1px solid rgba(167,139,250,.35);box-shadow:0 0 22px #6d28d922;backdrop-filter:blur(8px);border-radius:14px}
+  #top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+  #stats{padding:10px 12px;min-width:150px;font-size:12px}
+  #title{font-weight:900;letter-spacing:1.8px;color:#c4b5fd;font-size:14px}
+  #healthOuter{height:8px;background:#38203c;border-radius:9px;margin-top:7px;overflow:hidden}
+  #health{height:100%;width:100%;background:linear-gradient(90deg,#a855f7,#e879f9);transition:width .15s}
+  #wave{padding:10px 12px;font-weight:800;font-size:13px;text-align:right}
+  #hint{position:absolute;top:100px;left:50%;transform:translateX(-50%);padding:7px 11px;font-size:11px;color:#ddd6fe;white-space:nowrap}
+  #controls{position:absolute;inset:auto 0 18px 0;height:150px;display:flex;justify-content:space-between;align-items:end;padding:0 18px}
+  #stick{width:116px;height:116px;border-radius:50%;background:#ffffff12;border:2px solid #c4b5fd77;position:relative;pointer-events:auto;touch-action:none}
+  #nub{position:absolute;width:48px;height:48px;left:32px;top:32px;border-radius:50%;background:#a78bfa99;border:2px solid #ddd6fe;box-shadow:0 0 18px #a855faaa}
+  #actions{display:grid;grid-template-columns:repeat(2,66px);gap:9px;pointer-events:auto}
+  .act{width:66px;height:58px;border-radius:15px;border:1px solid #c4b5fd88;background:#211536dd;color:white;font-weight:800;font-size:11px;touch-action:manipulation}
+  .act strong{display:block;font-size:20px;color:#d8b4fe}
+  #blast{grid-column:span 2;width:141px;background:#6d28d9dd}
+  #overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#24123fdd,#07060df2);z-index:5;padding:24px}
+  #card{max-width:390px;width:100%;padding:25px;text-align:center;border:1px solid #a78bfa66;border-radius:22px;background:#100b20f2;box-shadow:0 0 55px #7c3aed33}
+  h1{margin:0;color:#d8b4fe;font-size:28px;letter-spacing:2px}
+  #card p{color:#ddd6fe;line-height:1.5;font-size:14px}
+  #start{border:0;border-radius:12px;padding:14px 24px;background:linear-gradient(90deg,#7c3aed,#c026d3);color:#fff;font-weight:900;font-size:15px;width:100%;margin-top:8px}
+  #selectScreen{position:fixed;inset:0;z-index:7;display:none;align-items:center;justify-content:center;padding:16px;background:radial-gradient(ellipse at center,#17305add,#05070df5);overflow:auto}
+  #selectPanel{width:min(900px,100%);max-height:94vh;overflow:auto;border:1px solid #60a5fa88;border-radius:22px;padding:20px;background:#07111fee;box-shadow:0 0 45px #2563eb44;text-align:center}
+  #selectPanel h2{margin:0;color:#bfdbfe;font-size:clamp(22px,4vw,34px);letter-spacing:2px}
+  #selectPanel p{color:#dbeafe;margin:7px 0 15px;font-size:13px}
+  #characterGrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+  .characterCard{min-width:0;padding:12px 7px;border-radius:15px;border:1px solid #64748b88;background:linear-gradient(160deg,#172554dd,#111827ee);color:#fff;cursor:pointer;touch-action:manipulation}
+  .characterCard.selected{border:2px solid #facc15;box-shadow:0 0 20px #facc1555;background:linear-gradient(160deg,#1e3a8a,#312e81)}
+  .charIcon{height:68px;display:flex;align-items:center;justify-content:center;font-size:43px;filter:drop-shadow(0 0 10px #60a5fa)}
+  .characterCard b{display:block;font-size:13px;margin-top:3px}
+  .characterCard small{display:block;color:#bfdbfe;font-size:10px;margin-top:4px;line-height:1.25}
+  #confirmCharacter{border:0;border-radius:12px;padding:13px 22px;background:linear-gradient(90deg,#2563eb,#7c3aed);color:white;font-weight:900;font-size:15px;width:min(340px,100%);margin-top:16px}
+  @media(max-width:600px){#characterGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.characterCard{padding:9px 4px}.charIcon{height:52px;font-size:34px}#selectPanel{padding:13px}}
+  #message{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);font-size:24px;font-weight:900;color:#e9d5ff;text-shadow:0 0 18px #a855f7;display:none;text-align:center}
+
+  #desktopHelp{position:absolute;bottom:5px;left:50%;transform:translateX(-50%);font-size:10px;color:#c4b5fd99;white-space:nowrap}
+  #rotateTip{display:none;position:fixed;inset:0;z-index:10;background:radial-gradient(ellipse at center,#24123f,#07060d);color:#fff;align-items:center;justify-content:center;text-align:center;padding:28px}
+  #rotateTip .rotateCard{max-width:320px;border:1px solid #a78bfa88;border-radius:22px;padding:24px;background:#100b20;box-shadow:0 0 45px #7c3aed55}
+  #rotateTip .phone{font-size:48px;display:block;margin-bottom:10px}
+  @media (orientation:portrait) and (max-width:900px){
+    #rotateTip{display:flex}
+    #top{top:7px;left:7px;right:7px}
+    #stats{padding:7px 9px;min-width:125px;font-size:10px}
+    #title{font-size:12px}
+    #wave{padding:7px 9px;font-size:11px}
+    #hint{top:78px;font-size:10px}
+    #controls{bottom:10px;height:115px;padding:0 12px}
+    #stick{width:100px;height:100px}
+    #nub{width:42px;height:42px;left:27px;top:27px}
+    #actions{grid-template-columns:repeat(2,60px);gap:6px}
+    .act{width:60px;height:49px;border-radius:13px;font-size:9px}
+    .act strong{font-size:17px}
+    #blast{width:126px}
+  }
+  @media (orientation:landscape) and (max-height:520px){
+    #top{top:7px;left:8px;right:8px}
+    #stats{padding:6px 9px;min-width:132px;font-size:10px}
+    #title{font-size:12px}
+    #wave{padding:6px 9px;font-size:11px}
+    #hint{top:8px;left:50%;font-size:10px}
+    #controls{bottom:8px;height:95px;padding:0 12px}
+    #stick{width:88px;height:88px}
+    #nub{width:38px;height:38px;left:23px;top:23px}
+    #actions{grid-template-columns:repeat(3,62px);gap:6px}
+    .act{width:62px;height:52px;font-size:9px}
+    .act strong{font-size:17px}
+    #blast{grid-column:auto;width:62px}
+    #desktopHelp{display:none}
+    #card{padding:16px;max-width:350px}
+    h1{font-size:24px}
+    #card p{font-size:12px;margin:8px 0}
+  }
+  @media(min-width:700px){#controls{max-width:900px;left:50%;transform:translateX(-50%);bottom:25px}#stick{width:125px;height:125px}#nub{left:36px;top:36px}#actions{grid-template-columns:repeat(3,70px)}.act{width:70px;height:65px}#blast{grid-column:auto;width:70px}}
+  @media (orientation:landscape) and (max-height:520px){
+    #controls{bottom:8px;height:95px;padding:0 12px}
+    #stick{width:88px;height:88px}
+    #nub{width:38px;height:38px;left:23px;top:23px}
+    #actions{grid-template-columns:repeat(3,62px);gap:6px}
+    .act{width:62px;height:52px;font-size:9px}
+    .act strong{font-size:17px}
+    #blast{grid-column:auto;width:62px}
+  }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div id="top">
+    <div id="stats" class="panel">
+      <div id="title">SHADOW ARENA</div>
+      <div style="margin-top:5px">VIDA <span id="hpText">100</span>%</div>
+      <div id="healthOuter"><div id="health"></div></div>
+      <div style="margin-top:6px">PONTOS: <span id="score">0</span></div>
+    </div>
+    <div id="wave" class="panel">ONDA <span id="waveNum">1</span><br><small><span id="enemyCount">0</span> inimigos</small></div>
+  </div>
+  <div id="hint" class="panel">Mova-se pela arena, use rajada de energia e explosão!</div>
+  <div id="message"></div>
+  <div id="controls">
+    <div id="stick"><div id="nub"></div></div>
+    <div id="actions">
+      <button class="act" id="dash"><strong>➤</strong>ESQUIVA</button>
+      <button class="act" id="blast"><strong>✦</strong>RAJADA</button>
+      <button class="act" id="burst"><strong>✹</strong>EXPLOSÃO</button>
+    </div>
+  </div>
+  <div id="desktopHelp">No computador: WASD / setas para mover · Espaço para rajada · Shift para esquiva</div>
+</div>
+<div id="rotateTip">
+  <div class="rotateCard">
+    <span class="phone">📱 ↻</span>
+    <h2 style="margin:0 0 8px;color:#d8b4fe">Jogue deitado!</h2>
+    <p style="line-height:1.5;color:#ddd6fe;margin:0">Gire o celular para a horizontal para jogar Shadow Arena com mais espaço para a arena e os controles.</p>
+  </div>
+</div>
+<div id="overlay">
+  <div id="card">
+    <h1>SHADOW ARENA</h1>
+    <p>Entre na arena 3D, escolha seu guerreiro e lute usando rajadas de energia.<br><br><b>ARENA 3D • COMBATE ANIME</b><br>Jogue com o celular na horizontal.</p>
+    <button id="start">ESCOLHER PERSONAGEM</button>
+    <p style="font-size:11px;color:#a78bfa">Explore a arena, mova-se e ataque os inimigos.</p>
+  </div>
+</div>
+<div id="selectScreen"><div id="selectPanel"><h2>ESCOLHA SEU GUERREIRO</h2><p>Selecione um personagem para entrar na arena.</p>
+  <div id="characterGrid">
+    <button class="characterCard selected" data-char="goku"><div class="charIcon">🔥</div><b>Goku</b><small>Equilibrado • Kamehameha</small></button>
+    <button class="characterCard" data-char="vegeta"><div class="charIcon">⚡</div><b>Vegeta</b><small>Rápido • Galick Gun</small></button>
+    <button class="characterCard" data-char="gohan"><div class="charIcon">💥</div><b>Gohan</b><small>Poder explosivo</small></button>
+    <button class="characterCard" data-char="piccolo"><div class="charIcon">🟢</div><b>Piccolo</b><small>Resistente • Energia</small></button>
+    <button class="characterCard" data-char="trunks"><div class="charIcon">🗡️</div><b>Trunks</b><small>Ágil • Espadachim</small></button>
+  </div><button id="confirmCharacter">LUTAR COM GOKU</button>
+</div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x090711);
+scene.fog = new THREE.Fog(0x090711, 18, 42);
+const camera = new THREE.PerspectiveCamera(58, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 9, 12);
+const renderer = new THREE.WebGLRenderer({antialias:false, powerPreference:'low-power'});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = false;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xbca8ff, 0x171020, 2));
+const light = new THREE.DirectionalLight(0xffffff, 2);
+light.position.set(4, 10, 5); scene.add(light);
+const purpleLight = new THREE.PointLight(0x8b5cf6, 20, 18);
+purpleLight.position.set(0, 4, 0); scene.add(purpleLight);
+
+// Chão de arena rochosa com placas, marcas de combate e borda iluminada.
+const floor = new THREE.Mesh(new THREE.CylinderGeometry(13,13,.72,64), new THREE.MeshStandardMaterial({color:0x39434b, roughness:1, metalness:.03}));
+floor.position.y=-.42; scene.add(floor);
+const groundTop = new THREE.Mesh(new THREE.CircleGeometry(12.8,64), new THREE.MeshStandardMaterial({color:0x77766c, roughness:1}));
+groundTop.rotation.x=-Math.PI/2;groundTop.position.y=-.055;scene.add(groundTop);
+const grid = new THREE.GridHelper(24,24,0x8b9298,0x59616b); grid.position.y=-.035; scene.add(grid);
+const ring = new THREE.Mesh(new THREE.TorusGeometry(11.8,.11,8,96), new THREE.MeshStandardMaterial({color:0xfbbf24,emissive:0x854d0e,emissiveIntensity:.7,metalness:.45,roughness:.35}));
+ring.rotation.x=Math.PI/2; ring.position.y=.04; scene.add(ring);
+for(let i=0;i<26;i++){const a=i/26*Math.PI*2;const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.16+Math.random()*.18,0),new THREE.MeshStandardMaterial({color:[0x5b6064,0x8a8273,0x464b51][i%3],roughness:1}));rock.position.set(Math.cos(a)*(7+Math.random()*4),.03,Math.sin(a)*(7+Math.random()*4));rock.scale.y=.35;scene.add(rock);}
+for(let i=0;i<12;i++){
+  const a=i/12*Math.PI*2;
+  const pillar=new THREE.Mesh(new THREE.CylinderGeometry(.22,.38,1.8,6),new THREE.MeshStandardMaterial({color:0x352052,emissive:0x32105c,emissiveIntensity:.6}));
+  pillar.position.set(Math.cos(a)*10.7,.7,Math.sin(a)*10.7);scene.add(pillar);
+  const orb=new THREE.Mesh(new THREE.SphereGeometry(.18,8,8),new THREE.MeshBasicMaterial({color:0xd8b4fe}));
+  orb.position.set(Math.cos(a)*10.7,1.7,Math.sin(a)*10.7);scene.add(orb);
+}
+
+function makeFighter(color, emissive=0x000000, isPlayer=false, characterType="goku"){
+  // Personagem estilizado em peças 3D: cabelo espetado, rosto, jaqueta, braços e botas.
+  const g=new THREE.Group();
+  const looks={
+    goku:{outfit:0xe85b20,hair:0x17131f,skin:0xf2c5a5,trim:0x2563eb,boots:0x183b9b,spikes:0x17131f},
+    vegeta:{outfit:0x26364b,hair:0x11131a,skin:0xe8b99b,trim:0x9ca3af,boots:0x334155,spikes:0x11131a},
+    gohan:{outfit:0x7134a8,hair:0x20131c,skin:0xf2c5a5,trim:0xfacc15,boots:0x38204f,spikes:0x20131c},
+    piccolo:{outfit:0x4d8b42,hair:0x16351d,skin:0x4e9c53,trim:0xf4c542,boots:0x315a2b,spikes:0x16351d},
+    trunks:{outfit:0x334b9a,hair:0x8b8f9e,skin:0xf0c4a8,trim:0xf1f5f9,boots:0x26356a,spikes:0x8b8f9e},
+    enemy:{outfit:0x34131f,hair:0x2b1017,skin:0xd7a79e,trim:color,boots:0x21111b,spikes:0x2b1017}
+  };
+  const look=isPlayer?(looks[characterType]||looks.goku):looks.enemy;
+  const outfitColor = look.outfit;
+  const skinColor = look.skin;
+  const hairColor = look.hair;
+  const cloth = new THREE.MeshStandardMaterial({color:outfitColor,roughness:.68,emissive:isPlayer?0x101020:0x250609,emissiveIntensity:.22});
+  const skin = new THREE.MeshStandardMaterial({color:skinColor,roughness:.8});
+  const hair = new THREE.MeshStandardMaterial({color:hairColor,roughness:.65});
+  const trim = new THREE.MeshStandardMaterial({color:isPlayer?look.trim:color,roughness:.4,metalness:.15,emissive,emissiveIntensity:.65});
+  const dark = new THREE.MeshStandardMaterial({color:isPlayer?look.boots:0x100d19,roughness:.8});
+  const basic = new THREE.MeshBasicMaterial({color:isPlayer?(characterType==='vegeta'?0x60a5fa:characterType==='piccolo'?0x86efac:0xfef08a):0xffd1d1});
+  const torso=new THREE.Mesh(new THREE.BoxGeometry(.64,.72,.36),cloth);torso.position.y=1.02;g.add(torso);
+  const chest=new THREE.Mesh(new THREE.BoxGeometry(.69,.16,.405),trim);chest.position.set(0,1.22,-.015);g.add(chest);
+  const shoulderMat=cloth;
+  for(const x of [-.39,.39]){const shoulder=new THREE.Mesh(new THREE.SphereGeometry(.17,10,8),shoulderMat);shoulder.position.set(x,1.25,0);g.add(shoulder);}
+  const belt=new THREE.Mesh(new THREE.BoxGeometry(.65,.1,.38),dark);belt.position.y=.72;g.add(belt);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.27,14,12),skin);head.position.set(0,1.62,-.025);g.add(head);
+  const fringe=new THREE.Mesh(new THREE.BoxGeometry(.38,.12,.31),hair);fringe.position.set(0,1.79,-.07);g.add(fringe);
+  // Picos de cabelo em volta da cabeça para uma silhueta de anime.
+  const spikeCount=characterType==='vegeta'?9:characterType==='piccolo'?4:8;
+  for(let i=0;i<spikeCount;i++){
+    const a=(i/spikeCount)*Math.PI*2;
+    const h=characterType==='vegeta'?.46:characterType==='trunks'?.22:characterType==='piccolo'?.18:.38;
+    const spike=new THREE.Mesh(new THREE.ConeGeometry(characterType==='vegeta'?.09:.115,h,5),hair);
+    spike.position.set(Math.cos(a)*.16,1.88+((i%2)*.035),Math.sin(a)*.13);
+    spike.rotation.z=-Math.cos(a)*.62;
+    spike.rotation.x=Math.sin(a)*.52;
+    g.add(spike);
+  }
+  if(characterType==='trunks'&&isPlayer){const sword=new THREE.Mesh(new THREE.BoxGeometry(.09,.75,.11),new THREE.MeshStandardMaterial({color:0xcbd5e1,metalness:.8,roughness:.2}));sword.position.set(.32,1.08,.3);sword.rotation.z=-.18;g.add(sword);const hilt=new THREE.Mesh(new THREE.BoxGeometry(.16,.08,.14),new THREE.MeshStandardMaterial({color:0x7c3aed,metalness:.5}));hilt.position.set(.32,.69,.3);g.add(hilt);}
+  // Olhos visíveis na frente do rosto.
+  for(const x of [-.105,.105]){
+    const eye=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),basic);
+    eye.position.set(x,1.64,-.265);g.add(eye);
+    const brow=new THREE.Mesh(new THREE.BoxGeometry(.09,.025,.025),hair);
+    brow.position.set(x,1.705,-.265);g.add(brow);
+  }
+  // Braços e luvas
+  for(const x of [-.43,.43]){
+    const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.105,.38,3,6),cloth);
+    arm.position.set(x,1.02,0);arm.rotation.z=x<0?-.16:.16;g.add(arm);
+    const glove=new THREE.Mesh(new THREE.SphereGeometry(.12,8,7),trim);
+    glove.position.set(x*1.12,.77,-.015);g.add(glove);
+  }
+  // Pernas e botas articuladas como peças separadas
+  for(const x of [-.19,.19]){
+    const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.12,.38,3,6),dark);
+    leg.position.set(x,.39,0);g.add(leg);
+    const boot=new THREE.Mesh(new THREE.BoxGeometry(.23,.13,.34),trim);
+    boot.position.set(x,.12,-.055);g.add(boot);
+  }
+  // Lenço/capa curta nas costas
+  if(characterType==='piccolo'&&isPlayer){const cape=new THREE.Mesh(new THREE.BoxGeometry(.72,.62,.12),new THREE.MeshStandardMaterial({color:0xe5e7eb,roughness:.85}));cape.position.set(0,1.02,.27);g.add(cape);}
+  const cape=new THREE.Mesh(new THREE.BoxGeometry(.48,.42,.08),trim);
+  cape.position.set(0,.98,.23);g.add(cape);
+  const aura=new THREE.Mesh(new THREE.TorusGeometry(.62,.035,6,28),new THREE.MeshBasicMaterial({color}));
+  aura.rotation.x=Math.PI/2;aura.position.y=.07;g.add(aura);
+  g.userData.parts={torso,head,limbs:g.children.filter(o=>o.geometry&&o.geometry.type==="CapsuleGeometry"),arms:g.children.filter(o=>o.geometry&&o.geometry.type==="CapsuleGeometry").slice(0,2),characterType};
+  return g;
+}
+let selectedCharacter='goku';
+const characterInfo={goku:{name:'Goku',color:0x2563eb,glow:0xff8a24},vegeta:{name:'Vegeta',color:0x60a5fa,glow:0x2563eb},gohan:{name:'Gohan',color:0xfacc15,glow:0x7c3aed},piccolo:{name:'Piccolo',color:0x86efac,glow:0x16a34a},trunks:{name:'Trunks',color:0xe2e8f0,glow:0x60a5fa}};
+let player=makeFighter(characterInfo.goku.color,characterInfo.goku.glow,true,'goku');scene.add(player);player.position.set(0,0,3);
+const enemies=[], shots=[], effects=[];
+let hp=100, score=0, wave=1, started=false, over=false, lastShot=0, lastBurst=0, lastSpawn=0, kills=0;
+const keys={}; let joyX=0,joyY=0, joyActive=false, joyPointer=null;
+const $=id=>document.getElementById(id);
+function updateHUD(){ $('hpText').textContent=Math.max(0,Math.ceil(hp));$('health').style.width=Math.max(0,hp)+'%';$('score').textContent=score;$('waveNum').textContent=wave;$('enemyCount').textContent=enemies.length; }
+function spawnEnemy(){
+  const a=Math.random()*Math.PI*2,r=8+Math.random()*2.5;
+  const enemyColor=[0xef4444,0xf97316,0xec4899][Math.floor(Math.random()*3)];
+  const e=makeFighter(enemyColor,0x5f1010,false,'enemy');
+  e.position.set(Math.cos(a)*r,0,Math.sin(a)*r);e.userData={hp:2+Math.floor(wave/3),speed:1.1+Math.random()*.35+wave*.06,hit:0};
+  scene.add(e);enemies.push(e);updateHUD();
+}
+function puff(pos,color=0xc084fc,size=.3){
+  const m=new THREE.Mesh(new THREE.SphereGeometry(size,8,8),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.9}));
+  m.position.copy(pos);scene.add(m);effects.push({mesh:m,life:.35,max:.35});
+}
+function shoot(){
+  const now=performance.now();if(now-lastShot<340)return;lastShot=now;
+  let target=null,dist=Infinity;
+  for(const e of enemies){const d=e.position.distanceTo(player.position);if(d<dist){dist=d;target=e;}}
+  const dir=new THREE.Vector3(0,0,-1);
+  if(target){dir.copy(target.position).sub(player.position);dir.y=0;dir.normalize();}
+  else {dir.set(-Math.sin(player.rotation.y),0,-Math.cos(player.rotation.y));}
+  const orb=new THREE.Mesh(new THREE.SphereGeometry(.19,10,8),new THREE.MeshBasicMaterial({color:0xd8b4fe}));
+  orb.position.copy(player.position).add(new THREE.Vector3(0,1.1,0)).addScaledVector(dir,.8);
+  scene.add(orb);shots.push({mesh:orb,dir,speed:13,life:1.5,damage:1});
+  puff(orb.position,0xa78bfa,.25);
+}
+function burst(){
+  const now=performance.now();if(now-lastBurst<2500)return;lastBurst=now;
+  puff(new THREE.Vector3(player.position.x,.8,player.position.z),0xe879f9,1.3);
+  for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];if(e.position.distanceTo(player.position)<4.5){e.userData.hp-=2;puff(e.position.clone().add(new THREE.Vector3(0,1,0)),0xf0abfc,.5);if(e.userData.hp<=0)removeEnemy(i);}}
+}
+function removeEnemy(i){scene.remove(enemies[i]);enemies.splice(i,1);score+=100;kills++;if(kills%6===0)wave++;updateHUD();}
+function dash(){const v=new THREE.Vector3(joyX,0,joyY);if(v.length()<.2){v.set(0,0,-1).applyAxisAngle(new THREE.Vector3(0,1,0),player.rotation.y);}v.normalize();player.position.addScaledVector(v,2.4);player.position.x=THREE.MathUtils.clamp(player.position.x,-11,11);player.position.z=THREE.MathUtils.clamp(player.position.z,-11,11);puff(player.position.clone().add(new THREE.Vector3(0,.7,0)),0xc4b5fd,.65);}
+function endGame(){over=true;$('message').style.display='block';$('message').innerHTML='FIM DE JOGO<br><small style="font-size:14px">Pontuação: '+score+'</small>';setTimeout(()=>{$('overlay').style.display='flex';$('card').innerHTML='<h1>FIM DE JOGO</h1><p>Você fez <b>'+score+' pontos</b> e chegou à onda '+wave+'.</p><button id="start">JOGAR NOVAMENTE</button>';$('start').onclick=()=>{$('overlay').style.display='none';$('selectScreen').style.display='flex';};},900);}
+async function restart(){
+  for(const e of enemies)scene.remove(e);enemies.length=0;
+  for(const s of shots)scene.remove(s.mesh);shots.length=0;
+  for(const e of effects)scene.remove(e.mesh);effects.length=0;
+  hp=100;score=0;wave=1;kills=0;over=false;started=true;player.position.set(0,0,3);
+  // Alguns navegadores permitem travar em paisagem após toque do usuário.
+  try { if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch(e) {}
+  try { if(screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape'); } catch(e) {}
+  $('message').style.display='none';$('overlay').style.display='none';$('hint').textContent='Mova-se pela arena, use rajada de energia e explosão!';updateHUD();for(let i=0;i<3;i++)spawnEnemy();
+}
+$('start').onclick=()=>{$('overlay').style.display='none';$('selectScreen').style.display='flex';};
+let chosen='goku';
+document.querySelectorAll('.characterCard').forEach(card=>card.addEventListener('click',()=>{
+  document.querySelectorAll('.characterCard').forEach(c=>c.classList.remove('selected'));
+  card.classList.add('selected');chosen=card.dataset.char;
+  $('confirmCharacter').textContent='LUTAR COM '+characterInfo[chosen].name.toUpperCase();
+}));
+$('confirmCharacter').onclick=()=>{selectedCharacter=chosen;scene.remove(player);const info=characterInfo[selectedCharacter];player=makeFighter(info.color,info.glow,true,selectedCharacter);scene.add(player);player.position.set(0,0,3);$('selectScreen').style.display='none';restart();};
+$('blast').addEventListener('pointerdown',e=>{e.preventDefault();shoot();});
+$('burst').addEventListener('pointerdown',e=>{e.preventDefault();burst();});
+$('dash').addEventListener('pointerdown',e=>{e.preventDefault();dash();});
+window.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.code==='Space'){e.preventDefault();shoot();}if(e.key==='Shift')dash();});
+window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+const stick=$('stick'),nub=$('nub');
+function joyStart(e){e.preventDefault();joyActive=true;joyPointer=e.pointerId;stick.setPointerCapture(e.pointerId);joyMove(e);}
+function joyMove(e){if(!joyActive||e.pointerId!==joyPointer)return;const r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const max=38,l=Math.hypot(dx,dy)||1;if(l>max){dx=dx/l*max;dy=dy/l*max;}joyX=dx/max;joyY=dy/max;nub.style.transform=`translate(${dx}px,${dy}px)`;}
+function joyEnd(e){if(e.pointerId!==joyPointer)return;joyActive=false;joyX=joyY=0;nub.style.transform='translate(0,0)';}
+stick.addEventListener('pointerdown',joyStart);stick.addEventListener('pointermove',joyMove);stick.addEventListener('pointerup',joyEnd);stick.addEventListener('pointercancel',joyEnd);
+function movePlayer(dt){
+  let x=joyX,z=joyY;
+  if(keys.a||keys.arrowleft)x-=1;if(keys.d||keys.arrowright)x+=1;if(keys.w||keys.arrowup)z-=1;if(keys.s||keys.arrowdown)z+=1;
+  const v=new THREE.Vector3(x,0,z);if(v.length()>1)v.normalize();
+  player.userData.moving=v.length()>.05;
+  if(v.length()>.05){player.position.x+=v.x*5*dt;player.position.z+=v.z*5*dt;player.rotation.y=Math.atan2(-v.x,-v.z);}
+  player.position.x=THREE.MathUtils.clamp(player.position.x,-11,11);player.position.z=THREE.MathUtils.clamp(player.position.z,-11,11);
+}
+const clock=new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);
+  if(started&&!over){
+    movePlayer(dt);
+    const walkT=performance.now()*.012;
+    const limbs=player.userData.parts?.limbs||[];
+    if(player.userData.moving){limbs.forEach((limb,i)=>{limb.rotation.x=Math.sin(walkT+(i%2)*Math.PI)*.62;});if(player.userData.parts?.torso)player.userData.parts.torso.position.y=1.02+Math.abs(Math.sin(walkT))*.045;}
+    else {limbs.forEach(limb=>limb.rotation.x*=.75);if(player.userData.parts?.torso)player.userData.parts.torso.position.y=1.02;}
+    if(keys[' '])shoot();
+    if(performance.now()-lastSpawn>Math.max(900,2600-wave*90)&&enemies.length<Math.min(12,3+wave)){spawnEnemy();lastSpawn=performance.now();}
+    for(let i=enemies.length-1;i>=0;i--){
+      const e=enemies[i],to=player.position.clone().sub(e.position);to.y=0;const d=to.length();
+      if(d>1.15){to.normalize();e.position.addScaledVector(to,e.userData.speed*dt);e.rotation.y=Math.atan2(-to.x,-to.z);}
+      else {e.userData.hit-=dt;if(e.userData.hit<=0){hp-=7;e.userData.hit=.8;puff(player.position.clone().add(new THREE.Vector3(0,1,0)),0xfb7185,.35);updateHUD();if(hp<=0){endGame();break;}}}
+    }
+    for(let i=shots.length-1;i>=0;i--){
+      const s=shots[i];s.mesh.position.addScaledVector(s.dir,s.speed*dt);s.life-=dt;let hit=false;
+      for(let j=enemies.length-1;j>=0;j--){if(s.mesh.position.distanceTo(enemies[j].position.clone().add(new THREE.Vector3(0,1,0)))<.8){enemies[j].userData.hp-=s.damage;puff(s.mesh.position,0xd8b4fe,.3);scene.remove(s.mesh);shots.splice(i,1);hit=true;if(enemies[j].userData.hp<=0)removeEnemy(j);break;}}
+      if(!hit&&s.life<=0){scene.remove(s.mesh);shots.splice(i,1);}
+    }
+    for(let i=effects.length-1;i>=0;i--){const e=effects[i];e.life-=dt;e.mesh.scale.multiplyScalar(1+dt*2);e.mesh.material.opacity=Math.max(0,e.life/e.max);if(e.life<=0){scene.remove(e.mesh);effects.splice(i,1);}}
+    const desired=new THREE.Vector3(player.position.x,8,player.position.z+10);camera.position.lerp(desired,1-Math.pow(.001,dt));camera.lookAt(player.position.x,.5,player.position.z);
+    updateHUD();
+  } else {camera.lookAt(0,0,0);}
+  renderer.render(scene,camera);
+}
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.setSize(innerWidth,innerHeight);});
+updateHUD();for(let i=0;i<3;i++)spawnEnemy();animate();
+</script>
+</body>
+</html>
